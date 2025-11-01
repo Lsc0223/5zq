@@ -96,7 +96,7 @@ func getAIMove(board [][]int) (*AIMove, error) {
 	prompt += "\nYour move (JSON only):"
 
 	reqBody := map[string]interface{}{
-		"model": "microsoft/phi-4-reasoning",
+		"model": "THUDM/glm-4-9b-chat",
 		"messages": []map[string]string{
 			{"role": "user", "content": prompt},
 		},
