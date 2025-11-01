@@ -86,18 +86,20 @@ func getAIMove(board [][]int) (*AIMove, error) {
 
 	log.Printf("Using API URL: %s", apiURL)
 
-	prompt := "You are a Gomoku AI. The board is 15x15. 1 is black (player), 2 is white (you). It's your turn. Return your move as a JSON object with 'row' and 'col' keys. \n\nBoard:\n"
-	for _, row := range board {
-		prompt += fmt.Sprintf("%v\n", row)
+	prompt := "You are a Gomoku AI. The board is 15x15. 1 is black (player), 2 is white (you). Empty cells are 0. It's your turn.\n\n"
+	prompt += "IMPORTANT: Reply with ONLY a JSON object in this exact format: {\"row\": number, \"col\": number}\n"
+	prompt += "Do NOT include any explanation or text before or after the JSON.\n\n"
+	prompt += "Board state:\n"
+	for i, row := range board {
+		prompt += fmt.Sprintf("Row %2d: %v\n", i, row)
 	}
-	prompt += "\nYour move (JSON only, no explanation):"
+	prompt += "\nYour move (JSON only):"
 
 	reqBody := map[string]interface{}{
-		"model": "google/gemma-3-27b-it:free",
+		"model": "microsoft/phi-4-reasoning",
 		"messages": []map[string]string{
 			{"role": "user", "content": prompt},
 		},
-		"response_format": map[string]string{"type": "json_object"},
 	}
 
 	reqBytes, err := json.Marshal(reqBody)
@@ -160,9 +162,23 @@ func getAIMove(board [][]int) (*AIMove, error) {
 
 	log.Printf("AI response content: %s", openAIResp.Choices[0].Message.Content)
 
+	// Extract JSON from response (AI might add extra text)
+	content := openAIResp.Choices[0].Message.Content
+	
+	// Try to find JSON object in the response
+	startIdx := bytes.IndexByte([]byte(content), '{')
+	endIdx := bytes.LastIndexByte([]byte(content), '}')
+	
+	if startIdx == -1 || endIdx == -1 || startIdx > endIdx {
+		return nil, fmt.Errorf("no valid JSON found in AI response: %s", content)
+	}
+	
+	jsonStr := content[startIdx : endIdx+1]
+	log.Printf("Extracted JSON: %s", jsonStr)
+
 	var move AIMove
-	if err := json.Unmarshal([]byte(openAIResp.Choices[0].Message.Content), &move); err != nil {
-		return nil, fmt.Errorf("error unmarshalling move from AI: %v, content: %s", err, openAIResp.Choices[0].Message.Content)
+	if err := json.Unmarshal([]byte(jsonStr), &move); err != nil {
+		return nil, fmt.Errorf("error unmarshalling move from AI: %v, content: %s", err, jsonStr)
 	}
 
 	// Validate move
