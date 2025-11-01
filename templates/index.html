@@ -1,14 +1,415 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>Gomoku</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>五子棋 - Gomoku</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.08);
+            max-width: 700px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #1a1a1a;
+            margin-bottom: 8px;
+            font-size: 2em;
+            font-weight: 600;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+            font-size: 0.9em;
+            font-weight: 400;
+        }
+
+        #status-container {
+            background: #fafafa;
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            text-align: center;
+            border: 1px solid #e5e5e5;
+        }
+
+        #status {
+            color: #333;
+            font-size: 1.1em;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .spinner {
+            display: none;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #e5e5e5;
+            border-top-color: #333;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        #board-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        #board {
+            display: inline-grid;
+            grid-template-columns: repeat(15, 32px);
+            grid-template-rows: repeat(15, 32px);
+            gap: 0;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e5e5e5;
+            position: relative;
+        }
+
+        #board::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            bottom: 20px;
+            background-image: 
+                repeating-linear-gradient(0deg, #ddd 0px, #ddd 1px, transparent 1px, transparent 32px),
+                repeating-linear-gradient(90deg, #ddd 0px, #ddd 1px, transparent 1px, transparent 32px);
+            pointer-events: none;
+        }
+
+        .cell {
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            transition: background 0.2s ease;
+        }
+
+        .cell:hover:not(.black):not(.white) {
+            background: rgba(0, 0, 0, 0.03);
+        }
+
+        .cell::after {
+            content: '';
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .cell.black::after {
+            background: #1a1a1a;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            animation: placeStone 0.25s ease;
+        }
+
+        .cell.white::after {
+            background: white;
+            border: 2px solid #1a1a1a;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            animation: placeStone 0.25s ease;
+        }
+
+        @keyframes placeStone {
+            0% {
+                transform: scale(0);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.1);
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        button {
+            background: #1a1a1a;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-size: 0.95em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        button:hover {
+            background: #333;
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .score-board {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 24px;
+            padding: 20px;
+            background: #fafafa;
+            border-radius: 12px;
+            border: 1px solid #e5e5e5;
+        }
+
+        .score-item {
+            text-align: center;
+        }
+
+        .score-label {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+
+        .score-value {
+            font-size: 1.8em;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .player-icon {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+
+        .player-icon.black {
+            background: #1a1a1a;
+        }
+
+        .player-icon.white {
+            background: white;
+            border: 2px solid #1a1a1a;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 24px;
+            }
+
+            h1 {
+                font-size: 1.6em;
+            }
+
+            #board {
+                grid-template-columns: repeat(15, 24px);
+                grid-template-rows: repeat(15, 24px);
+                padding: 15px;
+            }
+
+            .cell {
+                width: 24px;
+                height: 24px;
+            }
+
+            .cell::after {
+                width: 20px;
+                height: 20px;
+            }
+
+            #board::before {
+                background-image: 
+                    repeating-linear-gradient(0deg, #ddd 0px, #ddd 1px, transparent 1px, transparent 24px),
+                    repeating-linear-gradient(90deg, #ddd 0px, #ddd 1px, transparent 1px, transparent 24px);
+            }
+        }
+    </style>
 </head>
 <body>
-    <h1>Gomoku</h1>
-    <div id="board"></div>
-    <div id="status"></div>
-    <script src="/static/script.js"></script>
+    <div class="container">
+        <h1>五子棋</h1>
+        <p class="subtitle">Gomoku</p>
+        
+        <div id="status-container">
+            <div id="status">
+                <span class="player-icon black"></span>
+                <span>轮到你下棋</span>
+                <span class="spinner"></span>
+            </div>
+        </div>
+
+        <div id="board-container">
+            <div id="board"></div>
+        </div>
+
+        <div class="button-container">
+            <button onclick="resetGame()">重新开始</button>
+        </div>
+
+        <div class="score-board">
+            <div class="score-item">
+                <div class="score-label"><span class="player-icon black"></span>玩家</div>
+                <div class="score-value" id="player-score">0</div>
+            </div>
+            <div class="score-item">
+                <div class="score-label"><span class="player-icon white"></span>AI</div>
+                <div class="score-value" id="ai-score">0</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const boardSize = 15;
+        let board = Array(boardSize).fill(0).map(() => Array(boardSize).fill(0));
+        let currentPlayer = 1;
+        let playerScore = 0;
+        let aiScore = 0;
+
+        function renderBoard() {
+            const boardElement = document.getElementById('board');
+            boardElement.innerHTML = '';
+            for (let i = 0; i < boardSize; i++) {
+                for (let j = 0; j < boardSize; j++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    if (board[i][j] === 1) {
+                        cell.classList.add('black');
+                    } else if (board[i][j] === 2) {
+                        cell.classList.add('white');
+                    }
+                    cell.dataset.row = i;
+                    cell.dataset.col = j;
+                    cell.addEventListener('click', handleCellClick);
+                    boardElement.appendChild(cell);
+                }
+            }
+        }
+
+        async function handleCellClick(event) {
+            if (currentPlayer !== 1) return;
+
+            const row = parseInt(event.target.dataset.row);
+            const col = parseInt(event.target.dataset.col);
+
+            if (board[row][col] !== 0) return;
+
+            board[row][col] = 1;
+            renderBoard();
+            currentPlayer = 2;
+            updateStatus('AI 思考中...', true);
+
+            try {
+                const response = await fetch('/api/move', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ board }),
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    updateStatus('错误: ' + data.error, false);
+                    currentPlayer = 1;
+                    return;
+                }
+
+                board = data.board;
+                renderBoard();
+
+                if (data.winner) {
+                    if (data.winner === 1) {
+                        playerScore++;
+                        updateStatus('你赢了', false);
+                    } else {
+                        aiScore++;
+                        updateStatus('AI 赢了', false);
+                    }
+                    updateScores();
+                    currentPlayer = 0;
+                } else {
+                    currentPlayer = 1;
+                    updateStatus('轮到你下棋', false);
+                }
+            } catch (error) {
+                updateStatus('网络错误', false);
+                currentPlayer = 1;
+            }
+        }
+
+        function updateStatus(message, showSpinner) {
+            const statusElement = document.getElementById('status');
+            
+            if (message.includes('你')) {
+                statusElement.innerHTML = `<span class="player-icon black"></span><span>${message}</span>`;
+            } else if (message.includes('AI')) {
+                statusElement.innerHTML = `<span class="player-icon white"></span><span>${message}</span>`;
+            } else {
+                statusElement.innerHTML = `<span>${message}</span>`;
+            }
+
+            if (showSpinner) {
+                const spinner = document.createElement('span');
+                spinner.className = 'spinner';
+                spinner.style.display = 'inline-block';
+                statusElement.appendChild(spinner);
+            }
+        }
+
+        function updateScores() {
+            document.getElementById('player-score').textContent = playerScore;
+            document.getElementById('ai-score').textContent = aiScore;
+        }
+
+        function resetGame() {
+            board = Array(boardSize).fill(0).map(() => Array(boardSize).fill(0));
+            currentPlayer = 1;
+            renderBoard();
+            updateStatus('轮到你下棋', false);
+        }
+
+        renderBoard();
+        updateStatus('轮到你下棋', false);
+    </script>
 </body>
 </html>
