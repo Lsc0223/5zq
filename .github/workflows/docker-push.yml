@@ -39,7 +39,7 @@ jobs:
         context: .               # 构建上下文，通常是项目根目录
         push: true               # 推送到镜像仓库
         tags: |
-          liu0223/5zq:latest     # 镜像标签 1: latest
-          liu0223/5zq:sha-${{ github.sha }} # 镜像标签 2: 基于Git提交哈希值，确保唯一性
+          liu0223/5zq:latest
+          liu0223/5zq:sha-${{ github.sha }}
         cache-from: type=gha     # 使用 GitHub Actions 缓存来加速构建
         cache-to: type=gha,mode=max
