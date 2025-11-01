@@ -90,7 +90,7 @@ func getAIMove(board [][]int) (*AIMove, error) {
 	prompt += "\nYour move:"
 
 	reqBody := map[string]interface{}{
-		"model": "minimax/minimax-m2:free",
+		"model": "google/gemma-3-27b-it:free",
 		"messages": []map[string]string{
 			{"role": "user", "content": prompt},
 		},
