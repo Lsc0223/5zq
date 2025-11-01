@@ -29,8 +29,6 @@ func main() {
 		http.ServeFile(w, r, "templates/index.html")
 	})
 
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
-
 	http.HandleFunc("/api/move", handleMove)
 
 	fmt.Println("Server is running on http://localhost:8080")
