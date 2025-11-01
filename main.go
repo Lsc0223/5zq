@@ -53,6 +53,7 @@ func handleMove(w http.ResponseWriter, r *http.Request) {
 	// Get AI move
 	aiMove, err := getAIMove(req.Board)
 	if err != nil {
+		log.Printf("AI move error: %v", err)
 		json.NewEncoder(w).Encode(MoveResponse{Error: err.Error(), Board: req.Board})
 		return
 	}
@@ -83,11 +84,13 @@ func getAIMove(board [][]int) (*AIMove, error) {
 		return nil, fmt.Errorf("OPENAI_API_KEY and OPENAI_API_URL must be set")
 	}
 
+	log.Printf("Using API URL: %s", apiURL)
+
 	prompt := "You are a Gomoku AI. The board is 15x15. 1 is black (player), 2 is white (you). It's your turn. Return your move as a JSON object with 'row' and 'col' keys. \n\nBoard:\n"
 	for _, row := range board {
 		prompt += fmt.Sprintf("%v\n", row)
 	}
-	prompt += "\nYour move:"
+	prompt += "\nYour move (JSON only, no explanation):"
 
 	reqBody := map[string]interface{}{
 		"model": "google/gemma-3-27b-it:free",
@@ -99,12 +102,14 @@ func getAIMove(board [][]int) (*AIMove, error) {
 
 	reqBytes, err := json.Marshal(reqBody)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error marshalling request: %v", err)
 	}
+
+	log.Printf("Request body: %s", string(reqBytes))
 
 	req, err := http.NewRequest("POST", apiURL, bytes.NewBuffer(reqBytes))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error creating request: %v", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -113,14 +118,29 @@ func getAIMove(board [][]int) (*AIMove, error) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error making request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error reading response: %v", err)
 	}
+
+	log.Printf("Response status: %d", resp.StatusCode)
+	log.Printf("Response body: %s", string(respBody))
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	// Try to parse as generic JSON first to see the structure
+	var genericResp map[string]interface{}
+	if err := json.Unmarshal(respBody, &genericResp); err != nil {
+		return nil, fmt.Errorf("error unmarshalling response as generic JSON: %v", err)
+	}
+
+	log.Printf("Parsed response structure: %+v", genericResp)
 
 	var openAIResp struct {
 		Choices []struct {
@@ -131,18 +151,30 @@ func getAIMove(board [][]int) (*AIMove, error) {
 	}
 
 	if err := json.Unmarshal(respBody, &openAIResp); err != nil {
-		return nil, fmt.Errorf("error unmarshalling openai response: %v, body: %s", err, string(respBody))
+		return nil, fmt.Errorf("error unmarshalling openai response: %v", err)
 	}
 
 	if len(openAIResp.Choices) == 0 {
-		return nil, fmt.Errorf("no choices returned from AI")
+		return nil, fmt.Errorf("no choices returned from AI. Full response: %s", string(respBody))
 	}
+
+	log.Printf("AI response content: %s", openAIResp.Choices[0].Message.Content)
 
 	var move AIMove
 	if err := json.Unmarshal([]byte(openAIResp.Choices[0].Message.Content), &move); err != nil {
 		return nil, fmt.Errorf("error unmarshalling move from AI: %v, content: %s", err, openAIResp.Choices[0].Message.Content)
 	}
 
+	// Validate move
+	if move.Row < 0 || move.Row >= boardSize || move.Col < 0 || move.Col >= boardSize {
+		return nil, fmt.Errorf("invalid move coordinates: row=%d, col=%d", move.Row, move.Col)
+	}
+
+	if board[move.Row][move.Col] != 0 {
+		return nil, fmt.Errorf("invalid move: cell already occupied at row=%d, col=%d", move.Row, move.Col)
+	}
+
+	log.Printf("AI move: row=%d, col=%d", move.Row, move.Col)
 	return &move, nil
 }
 
