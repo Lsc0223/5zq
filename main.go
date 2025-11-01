@@ -86,7 +86,7 @@ func getAIMove(board [][]int) (*AIMove, error) {
 
 	prompt := "You are a Gomoku AI. The board is 15x15. 1 is black (player), 2 is white (you). Empty cells are 0. It's your turn.\n\n"
 	prompt += "IMPORTANT: Reply with ONLY a JSON object in this exact format: {\"row\": number, \"col\": number}\n"
-	prompt += "Do NOT include any explanation or text before or after the JSON.\n\n"
+	prompt += "Do NOT include any explanation or text before or after the JSON.Placing a piece on a square that is already occupied by another piece is prohibited.\n\n"
 	prompt += "Board state:\n"
 	for i, row := range board {
 		prompt += fmt.Sprintf("Row %2d: %v\n", i, row)
