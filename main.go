@@ -160,7 +160,7 @@ func getAIMove(board [][]int) (*AIMove, error) {
 	prompt += "\nYour move (JSON only, must be an empty position):"
 
 	reqBody := map[string]interface{}{
-		"model": "gpt-4.1-mini",
+		"model": "gemini-2.5-flash",
 		"messages": []map[string]string{
 			{"role": "user", "content": prompt},
 		},
